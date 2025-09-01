@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLAPPY FURY - Apuestas Basadas en Habilidad</title>
+    <link rel="icon" type="image/png" href="assets/new-logo-copia.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body>
+
+    <!-- ============================================= -->
+    <!--          VISTA DEL LOBBY (VISIBLE)            -->
+    <!-- ============================================= -->
+    <div id="lobby-view">
+        <header class="top-bar">
+            <div class="logo-title-group">
+                <img src="assets/new-logo.png" alt="Logo de Flappy Fury" id="top-bar-logo">
+                <div class="welcome-msg">BIENVENIDO</div>
+            </div>
+            <div class="user-actions">
+                <i class="fa-solid fa-volume-high"></i>
+                <i class="fa-solid fa-user"></i>
+                <i class="fa-solid fa-gear"></i>
+                <!-- Botones que cambiarán dinámicamente -->
+                <button id="login-btn" class="btn">Iniciar sesión</button>
+                <button id="register-btn" class="btn btn-primary">Registrarse</button>
+                <button id="logout-btn" class="btn btn-logout hidden">Cerrar sesión</button>
+            </div>
+        </header>
+
+        <!-- ============================================================================== -->
+        <!-- >>>>>>>>>> CAMBIO REALIZADO AQUÍ: Re-añadido el contenedor del logo grande <<<<<<<<<< -->
+        <!-- ============================================================================== -->
+        <div class="logo-container">
+            <img src="assets/flappy-fury-logo.png" alt="Logo de Flappy Fury" id="game-logo">
+            <p>GANA JUGANDO</p>
+        </div>
+
+        <main class="main-container">
+            <!-- COLUMNA IZQUIERDA -->
+            <div class="column left-column">
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fa-solid fa-trophy"></i> Tabla de clasificación</span><span class="status-live">● En vivo</span></div>
+                    <ul id="leaderboard-list" class="leaderboard-list">
+                        <!-- Las puntuaciones se insertarán aquí desde JavaScript -->
+                    </ul>
+                    <button class="btn btn-full-width btn-outline">Ver la clasificación completa</button>
+                </div>
+            </div>
+
+            <!-- COLUMNA CENTRAL -->
+            <div class="column center-column">
+                <div class="panel">
+                    <div class="panel-header user-panel">
+                        <div class="user-info">
+                            <span class="user-level">0</span>
+                            <div class="username-container">
+                                <span id="username-text">Invitado</span>
+                                <input type="text" id="username-input" class="hidden">
+                            </div>
+                        </div>
+                        <i id="edit-username-btn" class="fa-solid fa-pen-to-square icon-button hidden"></i>
+                    </div>
+                    <button id="play-button" class="btn btn-primary btn-play"><i class="fa-solid fa-play"></i> JUGAR GRATIS</button>
+                    <button class="btn btn-primary btn-play"><i class="fa-solid fa-play"></i> JUGAR</button>
+                </div>
+                <div class="stats-container">
+                    <div class="stat-item">
+                        <div class="stat-number">9</div>
+                        <div class="stat-label">Jugadores en el juego</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">$154,937</div>
+                        <div class="stat-label">Ganancias de los jugadores</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <label for="debug-mode-toggle"><i class="fa-solid fa-bug"></i> Opciones de Depuración</label>
+                        <input type="checkbox" id="debug-mode-toggle">
+                    </div>
+                    <div id="debug-options" class="hidden">
+                        <div class="debug-option-item">
+                            <label for="start-score-input">Puntuación Inicial:</label>
+                            <input type="number" id="start-score-input" value="0" min="0">
+                        </div>
+                        <div class="debug-option-item">
+                            <label for="start-event-select">Saltar al Evento:</label>
+                            <select id="start-event-select">
+                                <option value="none">Ninguno</option>
+                                <option value="projectile">Evento de Proyectiles (Score 10)</option>
+                                <option value="wall">Evento de Muro (Score 30)</option>
+                                <option value="zoom">Vista con Zoom (Post-Muro)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA -->
+            <div class="column right-column">
+                <div class="panel panel-wallet">
+                    <div class="panel-header"><span><i class="fa-solid fa-wallet"></i> Billetera</span></div>
+                    <div class="wallet-balance">$0.00</div>
+                    <p class="wallet-sub-balance">0.0000 SOL</p>
+                    <div class="wallet-actions">
+                        <button class="btn btn-outline-green">Añadir fondos</button>
+                        <button class="btn btn-outline-blue">Retirar</button>
+                    </div>
+                </div>
+                <div class="panel panel-customize">
+                    <div class="panel-header"><span><i class="fa-solid fa-shirt"></i> Personalizar</span></div>
+                    <div class="customize-preview">
+                        <div id="bird-preview"></div>
+                    </div>
+                    <button id="change-skin-btn" class="btn btn-full-width btn-outline">Cambiar apariencia</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <button id="discord-button" class="btn btn-discord"><i class="fa-brands fa-discord"></i> ¡Únete a Discord!</button>
+
+    <!-- VISTA DEL Juego (OCULTA) -->
+    <div id="game-view">
+        <div id="phaser-container"></div>
+        <div class="fullscreen-controls">
+            <button id="enter-fullscreen" class="btn"><i class="fa-solid fa-expand"></i></button>
+            <button id="exit-fullscreen" class="btn" style="display: none;"><i class="fa-solid fa-compress"></i></button>
+        </div>
+    </div>
+
+    <!-- Modal de Personalización -->
+    <div id="modal-customize" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn">&times;</button>
+            <h2>Elige tu Aspecto</h2>
+            <div class="customize-preview modal-preview">
+                <div id="modal-bird-preview"></div>
+            </div>
+            <div class="skin-selection-grid">
+                <div class="skin-option active" data-skin-key="bird" data-skin-preview-class="skin-bird-default"><div class="skin-preview skin-bird-default"></div></div>
+                <div class="skin-option" data-skin-key="bird-red" data-skin-preview-class="skin-bird-red"><div class="skin-preview skin-bird-red"></div></div>
+                <div class="skin-option" data-skin-key="bird-blue" data-skin-preview-class="skin-bird-blue"><div class="skin-preview skin-bird-blue"></div></div>
+            </div>
+            <button id="save-skin-btn" class="btn btn-primary btn-full-width">Guardar y Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Inicio de Sesión -->
+    <div id="modal-login" class="modal-overlay hidden">
+        <div class="modal-content auth-modal">
+            <button class="modal-close-btn">&times;</button>
+            <h2>Iniciar Sesión</h2>
+            <form id="login-form">
+                <input type="text" id="login-username" placeholder="Nombre de Usuario" required>
+                <input type="password" id="login-password" placeholder="Contraseña" required>
+                <button type="submit" class="btn btn-primary btn-full-width">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Registro -->
+    <div id="modal-register" class="modal-overlay hidden">
+        <div class="modal-content auth-modal">
+            <button class="modal-close-btn">&times;</button>
+            <h2>Crear Cuenta</h2>
+            <form id="register-form">
+                <input type="text" id="register-username" placeholder="Nombre de Usuario" required>
+                <input type="password" id="register-password" placeholder="Contraseña" required>
+                <button type="submit" class="btn btn-primary btn-full-width">Registrarse</button>
+            </form>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="game.js"></script> 
+</body>
+</html>

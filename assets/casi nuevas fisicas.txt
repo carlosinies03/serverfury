@@ -1,0 +1,449 @@
+// =============================================
+//         CÓDIGO PARA CAMBIAR VISTAS
+// =============================================
+const lobbyView = document.getElementById('lobby-view');
+const gameView = document.getElementById('game-view');
+const playButton = document.getElementById('play-button');
+const backButton = document.getElementById('back-button');
+
+let phaserGame;
+
+playButton.addEventListener('click', () => {
+    lobbyView.style.display = 'none';
+    gameView.style.display = 'flex';
+    if (!phaserGame) {
+        phaserGame = new Phaser.Game(config);
+    } else {
+        phaserGame.scene.getScene('mainScene').scene.restart();
+    }
+});
+
+backButton.addEventListener('click', () => {
+    gameView.style.display = 'none';
+    lobbyView.style.display = 'block';
+    updateLeaderboard();
+});
+
+
+// =============================================
+//         LÓGICA DE LA TABLA DE RÉCORDS
+// =============================================
+
+function updateLeaderboard() {
+    const leaderboardList = document.getElementById('personal-leaderboard');
+    if (!leaderboardList) return;
+
+    const scores = JSON.parse(localStorage.getItem('myGameScores')) || [];
+    
+    scores.sort((a, b) => b - a);
+    const topScores = scores.slice(0, 5);
+
+    leaderboardList.innerHTML = '';
+
+    if (topScores.length === 0) {
+        leaderboardList.innerHTML = '<li><span>-</span> <span class="score">Juega para puntuar</span></li>';
+    } else {
+        topScores.forEach((score, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${index + 1}.</span> <span class="score">${score} Puntos</span>`;
+            leaderboardList.appendChild(li);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', updateLeaderboard);
+
+
+// =============================================
+//         CÓDIGO DEL JUEGO CON PHASER
+// =============================================
+
+class MainScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'mainScene' });
+        
+        this.GRAVITY_STRENGTH = 900;
+        this.FLAP_VELOCITY = -330;
+        this.INITIAL_PIPE_SPEED = -200;
+        this.SPEED_INCREMENT = -20;
+        this.MAX_PIPE_SPEED = -350;
+        this.INITIAL_PIPE_GAP = 180;
+        this.MIN_PIPE_GAP = 140;
+        this.PIPE_VERTICAL_MOVEMENT = 80;
+        this.INITIAL_TWEEN_DURATION = 3000;
+        this.MIN_TWEEN_DURATION = 1400;
+        this.PIPE_HORIZONTAL_OFFSET = 40;
+        this.INITIAL_WALL_AMPLITUDE = 50;
+        this.WALL_AMPLITUDE_INCREMENT = 20;
+        this.MAX_WALL_AMPLITUDE = 100;
+        
+        this.bird = null; 
+        this.pipes = null; 
+        this.fireballs = null;
+        this.background = null;
+        this.score = 0; 
+        this.scoreText = null;
+        this.gameStarted = false; 
+        this.gameOver = false; 
+        this.pipeTimer = null;
+        this.isWallEventActive = false;
+        this.isProjectileEventActive = false;
+        this.fireballFromLeftNext = false;
+
+        this.currentPipeSpeed = this.INITIAL_PIPE_SPEED;
+        this.currentPipeGap = this.INITIAL_PIPE_GAP;
+        this.currentTweenDuration = this.INITIAL_TWEEN_DURATION;
+        this.currentWallAmplitude = this.INITIAL_WALL_AMPLITUDE;
+        this.nextWallScore = 30;
+        this.nextProjectileScore = 10;
+
+        // Variables de estado
+        this.isRotated = false;
+        this.projectileEventCount = 0; // Contador para las rondas de fuego
+    }
+
+    preload() {
+        this.load.image('background', 'assets/fondo.jpg');
+        this.load.image('bird', 'assets/pajaro.png');
+        this.load.image('pipe', 'assets/tuberia.png');
+        this.load.image('fireball', 'assets/bola-de-fuego.png');
+    }
+
+    create() {
+        this.cameras.main.scrollX = 0;
+        this.cameras.main.rotation = 0;
+
+        this.gameStarted = false; 
+        this.gameOver = false; 
+        this.isWallEventActive = false;
+        this.isProjectileEventActive = false;
+        this.fireballFromLeftNext = false;
+        this.isRotated = false;
+        this.projectileEventCount = 0;
+        this.currentPipeSpeed = this.INITIAL_PIPE_SPEED;
+        this.currentPipeGap = this.INITIAL_PIPE_GAP;
+        this.currentTweenDuration = this.INITIAL_TWEEN_DURATION;
+        this.currentWallAmplitude = this.INITIAL_WALL_AMPLITUDE;
+        this.nextWallScore = 30;
+        this.nextProjectileScore = 10;
+
+        // ===== CORREGIDO: Lienzo grande para rotación + escala ajustada para el "zoom" =====
+        this.background = this.add.tileSprite(
+            this.game.config.width / 2,
+            this.game.config.height / 2,
+            this.game.config.width * 1.5,  // Necesario para que no se vean bordes negros al rotar
+            this.game.config.height * 1.5, // Necesario para que no se vean bordes negros al rotar
+            'background'
+        )
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(-1)
+        .setTileScale(0.50, 0.50); // ¡LA LÍNEA CLAVE! Ajusta el "zoom" del patrón del fondo.
+
+        this.pipes = this.physics.add.group();
+        this.fireballs = this.physics.add.group();
+        
+        this.bird = this.physics.add.sprite(100, 300, 'bird');
+        this.bird.setDisplaySize(51, 36);
+        this.bird.body.setSize(38, 28);
+        this.bird.setCollideWorldBounds(true).body.onWorldBounds = true; 
+        this.bird.body.setAllowGravity(false);
+
+        const getReadyText = this.add.text(this.game.config.width / 2, this.game.config.height / 3, '¡Prepárate!', { 
+            fontSize: '48px', fill: '#fff', stroke: '#000', strokeThickness: 5 
+        }).setOrigin(0.5);
+        
+        const birdFloat = this.tweens.add({ 
+            targets: this.bird, y: 310, ease: 'Sine.easeInOut', duration: 400, yoyo: true, repeat: -1 
+        });
+
+        this.physics.world.on('worldbounds', () => this.hitPipe());
+        this.physics.add.collider(this.bird, this.pipes, this.hitPipe, null, this);
+        this.physics.add.collider(this.bird, this.fireballs, this.hitPipe, null, this);
+
+        this.input.on('pointerdown', () => this.flap(getReadyText, birdFloat));
+        this.input.keyboard.on('keydown-SPACE', () => this.flap(getReadyText, birdFloat));
+
+        this.score = 0;
+        this.scoreText = this.add.text(this.game.config.width / 2, 50, '', { 
+            fontSize: '48px', fill: '#fff', stroke: '#000', strokeThickness: 5 
+        }).setOrigin(0.5).setAlpha(0).setDepth(10).setScrollFactor(0);
+        
+        this.gameOverContainer = this.createGameOverScreen();
+        this.gameOverContainer.setScrollFactor(0);
+    }
+
+    update() { 
+        if (this.gameOver) return; 
+
+        if (this.gameStarted) {
+            this.background.tilePositionX += 0.5 / 0.75; // Ajustamos la velocidad al nuevo tileScale
+        }
+
+        if (this.gameStarted) { 
+            if (this.bird.body.velocity.y < 0) {
+                this.bird.angle = Phaser.Math.Clamp(this.bird.angle - 5, -30, 90); 
+            } else if (this.bird.angle < 90) {
+                this.bird.angle += 2.5;
+            }
+        }
+        
+        this.fireballs.getChildren().forEach(fireball => {
+            const leftBound = this.cameras.main.scrollX - 50;
+            const rightBound = this.cameras.main.scrollX + this.game.config.width + 50;
+            if (fireball.x < leftBound || fireball.x > rightBound) {
+                fireball.destroy();
+            }
+        });
+
+        const cameraRotation = this.cameras.main.rotation;
+        this.scoreText.rotation = -cameraRotation;
+        this.gameOverContainer.rotation = -cameraRotation;
+    }
+    
+    flap(getReadyText, birdFloat) {
+        if (this.gameOver) return;
+        if (!this.gameStarted) {
+            this.gameStarted = true; 
+            this.bird.body.setAllowGravity(true).setGravityY(this.GRAVITY_STRENGTH);
+            birdFloat.stop(); 
+            getReadyText.destroy();
+            this.scoreText.setAlpha(1).setText(this.score);
+            this.pipeTimer = this.time.addEvent({ 
+                delay: 1500, callback: this.addPipeRow, callbackScope: this, loop: true 
+            });
+        }
+        
+        this.bird.setVelocityY(this.FLAP_VELOCITY); 
+        this.bird.setAngle(-30);
+    }
+    
+    addPipeRow() {
+        const pipeWidth = 60; 
+        const spawnX = this.game.config.width + this.cameras.main.scrollX;
+        let isMover = this.score >= 10 ? Phaser.Math.Between(0, 1) === 1 : false;
+        
+        let gap = this.currentPipeGap;
+        const pipeY = Phaser.Math.Between(150, this.game.config.height - 150 - gap);
+        this.createPipePair(spawnX, pipeY, gap, pipeWidth, isMover, 0);
+        
+        const scoreZone = this.add.zone(spawnX + (pipeWidth / 2), 0, 1, this.game.config.height).setOrigin(0, 0);
+        this.physics.world.enable(scoreZone); 
+        scoreZone.body.setAllowGravity(false).setVelocityX(this.currentPipeSpeed);
+        this.physics.add.overlap(this.bird, scoreZone, () => {
+            scoreZone.destroy(); 
+            this.score++; 
+            this.scoreText.setText(this.score); 
+            this.updateScoreAndDifficulty();
+        });
+    }
+
+    createPipePair(x, y, gap, width, isMover, horizontalOffset = 0) {
+        const upperPipe = this.pipes.create(x + horizontalOffset, y - (gap / 2), 'pipe').setOrigin(0, 1);
+        const lowerPipe = this.pipes.create(x - horizontalOffset, y + (gap / 2), 'pipe').setOrigin(0, 0);
+        
+        const setupPipe = (pipe, isUpper) => {
+            pipe.setImmovable(true).body.setAllowGravity(false).setVelocityX(this.currentPipeSpeed);
+            if(isUpper) {
+                pipe.setDisplaySize(width, pipe.y + 20).setFlipY(true);
+            } else {
+                pipe.setDisplaySize(width, this.game.config.height - pipe.y + 20);
+            }
+        };
+        setupPipe(upperPipe, true); 
+        setupPipe(lowerPipe, false);
+
+        if (isMover) { 
+            this.tweens.add({ 
+                targets: [upperPipe, lowerPipe], 
+                y: Phaser.Math.RND.pick([`+=${this.PIPE_VERTICAL_MOVEMENT}`, `-=${this.PIPE_VERTICAL_MOVEMENT}`]), 
+                duration: this.currentTweenDuration, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, 
+                onUpdate: (tween, target) => { 
+                    setupPipe(target, target.originY === 1); 
+                } 
+            }); 
+        }
+    }
+
+    updateScoreAndDifficulty() {
+        if (this.isWallEventActive || this.isProjectileEventActive) return;
+        if (this.score > 0 && this.score >= this.nextProjectileScore) {
+            this.nextProjectileScore += 10;
+            this.startProjectileEvent();
+            return;
+        }
+        if (this.score >= this.nextWallScore) {
+            this.nextWallScore += 30; 
+            this.isWallEventActive = true; 
+            this.generatePipeWall(); 
+            return;
+        }
+        if (this.currentPipeGap > this.MIN_PIPE_GAP) this.currentPipeGap = Math.max(this.MIN_PIPE_GAP, this.INITIAL_PIPE_GAP - Math.floor(this.score / 5) * 3);
+        if (this.currentTweenDuration > this.MIN_TWEEN_DURATION) this.currentTweenDuration = Math.max(this.MIN_TWEEN_DURATION, this.INITIAL_TWEEN_DURATION - this.score * 40);
+    }
+    
+    rotateViewAfterEvent() {
+        this.isRotated = !this.isRotated;
+        const targetRotation = this.isRotated ? Math.PI : 0;
+        this.tweens.add({
+            targets: this.cameras.main,
+            rotation: targetRotation,
+            duration: 600,
+            ease: 'Sine.easeInOut'
+        });
+    }
+
+    startProjectileEvent() {
+        this.isProjectileEventActive = true;
+        this.pipeTimer.paused = true;
+        this.projectileEventCount++;
+
+        this.tweens.add({
+            targets: this.cameras.main, scrollX: this.bird.x - this.game.config.width / 2,
+            duration: 800, ease: 'Power2'
+        });
+
+        const eventDuration = 10000;
+        const fireballInterval = 700;
+        const fireballSpeed = 250;
+
+        const launchFireball = () => {
+            const verticalSpread = 100;
+            const birdY = this.bird.y;
+
+            const createFireball = (fromLeft) => {
+                let spawnY = Phaser.Math.Between(birdY - verticalSpread, birdY + verticalSpread);
+                spawnY = Phaser.Math.Clamp(spawnY, 20, this.game.config.height - 20);
+                
+                const spawnX = fromLeft ? this.cameras.main.scrollX - 50 : this.cameras.main.scrollX + this.game.config.width + 50;
+                const velocityX = fromLeft ? fireballSpeed : -fireballSpeed;
+
+                const fireball = this.fireballs.create(spawnX, spawnY, 'fireball');
+                fireball.body.setAllowGravity(false);
+                fireball.setVelocityX(velocityX);
+                fireball.setDisplaySize(40, 40);
+            };
+
+            if (this.projectileEventCount <= 2) {
+                createFireball(this.fireballFromLeftNext);
+            } else {
+                createFireball(true);
+                createFireball(false);
+            }
+        };
+
+        const fireballTimer = this.time.addEvent({ delay: fireballInterval, callback: launchFireball, loop: true });
+
+        this.time.delayedCall(eventDuration, () => {
+            fireballTimer.remove();
+            this.time.delayedCall(2000, () => {
+                this.tweens.add({
+                    targets: this.cameras.main, scrollX: 0, duration: 800, ease: 'Power2',
+                    onComplete: () => {
+                        if (this.projectileEventCount <= 2) {
+                            this.fireballFromLeftNext = !this.fireballFromLeftNext;
+                        }
+                        this.isProjectileEventActive = false;
+                        this.rotateViewAfterEvent();
+                        this.pipeTimer.paused = false;
+                        this.score++;
+                        this.scoreText.setText(this.score);
+                        this.updateScoreAndDifficulty();
+                    }
+                });
+            });
+        });
+    }
+
+    generatePipeWall() {
+        const wallPipeCount = 15; 
+        const pipeWidth = 60; 
+        const gap = 140;
+        const centerY = this.game.config.height / 2;
+        const direction = Phaser.Math.RND.pick([-1, 1]);
+        
+        this.pipeTimer.paused = true;
+        
+        for (let i = 0; i < wallPipeCount; i++) {
+            const spawnX = this.game.config.width + this.cameras.main.scrollX;
+            this.time.delayedCall(i * 150, () => {
+                const progress = i / (wallPipeCount - 1);
+                const easedValue = Phaser.Math.Easing.Sine.InOut(progress);
+                const offset = (-this.currentWallAmplitude + (easedValue * this.currentWallAmplitude * 2)) * direction;
+                this.createPipePair(spawnX, centerY + offset, gap, pipeWidth, false, 0);
+            });
+        }
+        
+        this.time.delayedCall(wallPipeCount * 150 + 1000, () => {
+            this.currentWallAmplitude = Math.min(this.MAX_WALL_AMPLITUDE, this.currentWallAmplitude + this.WALL_AMPLITUDE_INCREMENT);
+            const scoreZone = this.add.zone(this.game.config.width + this.cameras.main.scrollX + 200, 0, 1, this.game.config.height).setOrigin(0, 0);
+            this.physics.world.enable(scoreZone); 
+            scoreZone.body.setAllowGravity(false).setVelocityX(this.currentPipeSpeed);
+            
+            this.physics.add.overlap(this.bird, scoreZone, () => {
+                scoreZone.destroy(); 
+                this.score += 1;
+                this.scoreText.setText(this.score);
+                this.isWallEventActive = false; 
+                this.nextProjectileScore = this.score + 10;
+                
+                this.time.delayedCall(800, () => {
+                    this.pipeTimer.paused = false;
+                    this.updateScoreAndDifficulty();
+                });
+            });
+        });
+    }
+    
+    hitPipe() {
+        if (this.gameOver) return;
+        this.gameOver = true;
+        const scores = JSON.parse(localStorage.getItem('myGameScores')) || [];
+        scores.push(this.score);
+        localStorage.setItem('myGameScores', JSON.stringify(scores));
+        this.physics.pause(); 
+        this.tweens.pauseAll(); 
+        if (this.pipeTimer) this.pipeTimer.remove(); 
+        this.bird.setTint(0xff0000); 
+        this.cameras.main.flash(250, 255, 255, 255); 
+        this.showGameOverScreen();
+    }
+    
+    createGameOverScreen() {
+        const container = this.add.container(this.game.config.width / 2, this.game.config.height / 2).setAlpha(0).setDepth(20);
+        const gameOverText = this.add.text(0, -50, 'Fin de la Partida', { 
+            fontSize: '40px', fill: '#fff', stroke: '#000', strokeThickness: 5 
+        }).setOrigin(0.5);
+        const scoreBoard = this.add.text(0, 0, '', { 
+            fontSize: '28px', fill: '#fff', stroke: '#000', strokeThickness: 4 
+        }).setOrigin(0.5);
+        const restartButton = this.add.text(0, 60, 'Reiniciar', { 
+            fontSize: '32px', fill: '#FFD700', backgroundColor: '#000', padding: { x: 20, y: 10 } 
+        }).setOrigin(0.5);
+        restartButton.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.scene.restart());
+        container.add([gameOverText, scoreBoard, restartButton]);
+        return container;
+    }
+
+    showGameOverScreen() { 
+        const scoreBoard = this.gameOverContainer.getAt(1); 
+        scoreBoard.setText(`Puntuación: ${this.score}`); 
+        this.time.delayedCall(500, () => { 
+            this.add.tween({ 
+                targets: this.gameOverContainer, alpha: 1, duration: 300, ease: 'Power2' 
+            }); 
+        }); 
+    }
+}
+
+const config = { 
+    type: Phaser.AUTO, 
+    parent: 'game-view', 
+    scale: { 
+        mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 400, height: 600 
+    }, 
+    physics: { 
+        default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } 
+    }, 
+    scene: MainScene 
+};
