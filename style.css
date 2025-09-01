@@ -328,7 +328,7 @@ body::before {
     }
     
     .logo-container { margin: 1rem 0; }
-    .main-container { grid-template-columns: 1fr 1fr; }
+   
 
     #discord-button {
         position: static; 
