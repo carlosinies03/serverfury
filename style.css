@@ -313,23 +313,7 @@ body::before {
 /* ================================================================== */
 /*          MEDIA QUERY PARA OPTIMIZACIÓN MÓVIL                       */
 /* ================================================================== */
-@media (max-width: 991px) {
-    #lobby-view {
-        min-height: 0;
-        height: auto; 
-    }
 
-    .top-bar {
-        flex-direction: column; 
-        align-items: center;
-    }
-    
-    #discord-button {
-        position: static; 
-        width: 100%;
-    }
-    #game-view { flex-direction: column; }
-}
 
 /* ================================================================== */
 /*                     VISTA DEL JUEGO                                */
