@@ -327,9 +327,6 @@ body::before {
         margin-bottom: 1rem;
     }
     
-    .logo-container { margin: 1rem 0; }
-   
-
     #discord-button {
         position: static; 
         width: 100%;
