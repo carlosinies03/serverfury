@@ -394,7 +394,7 @@ class MainScene extends Phaser.Scene {
         this.anims.create({ key: 'burn', frames: this.anims.generateFrameNumbers('fireball_projectile', { start: 0, end: 5 }), frameRate: 12, repeat: -1 });
         this.anims.create({ key: 'puff', frames: this.anims.generateFrameNumbers('death_effect', { start: 0, end: 11 }), frameRate: 24, repeat: 0 });
         
-        this.bird.setFrame(0).setDisplaySize(72, 50).body.setSize(48, 36);
+        this.bird.setFrame(0).setDisplaySize(60, 42).body.setSize(40, 30);
         this.bird.setCollideWorldBounds(true).body.onWorldBounds = true;
         this.bird.body.setAllowGravity(false);
         

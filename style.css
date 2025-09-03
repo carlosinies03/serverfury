@@ -226,7 +226,7 @@ body::before {
     font-size: 1rem; 
     letter-spacing: 4px; 
     margin: 0; 
-    color: #FFFFFF; 
+    color: #aaa; 
     text-transform: uppercase; 
 }
 
@@ -313,7 +313,32 @@ body::before {
 /* ================================================================== */
 /*          MEDIA QUERY PARA OPTIMIZACIÓN MÓVIL                       */
 /* ================================================================== */
+@media (max-width: 991px) {
+    #lobby-view {
+        min-height: 0;
+        height: auto; 
+        padding: 1rem 1.5rem;
+    }
 
+    .top-bar {
+        flex-direction: column; 
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .logo-container { margin: 1rem 0; }
+    .main-container { grid-template-columns: 1fr; }
+
+    #discord-button {
+        position: static; 
+        width: 100%;
+        margin-top: 1.5rem;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+    }
+    #game-view { flex-direction: column; }
+}
 
 /* ================================================================== */
 /*                     VISTA DEL JUEGO                                */
